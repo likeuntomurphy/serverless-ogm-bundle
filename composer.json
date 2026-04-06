@@ -1,0 +1,38 @@
+{
+    "name": "likeuntomurphy/serverless-ogm-bundle",
+    "description": "Symfony bundle for the Serverless OGM",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Likeuntomurphy\\Serverless\\OGMBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Likeuntomurphy\\Serverless\\OGMBundle\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=8.5",
+        "likeuntomurphy/serverless-ogm": "^0.1 || @dev",
+        "symfony/config": "^8.0",
+        "symfony/dependency-injection": "^8.0",
+        "symfony/finder": "^8.0",
+        "symfony/http-kernel": "^8.0"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/likeuntomurphy/serverless-ogm.git"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.94",
+        "matthiasnoback/symfony-dependency-injection-test": "^6.2",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^13.0"
+    }
+}
