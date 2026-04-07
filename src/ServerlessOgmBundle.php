@@ -3,15 +3,19 @@
 namespace Likeuntomurphy\Serverless\OGMBundle;
 
 use Aws\DynamoDb\DynamoDbClient;
-use Likeuntomurphy\Serverless\OGMBundle\Command\TableCreateCommand;
 use Likeuntomurphy\Serverless\OGM\DocumentManager;
 use Likeuntomurphy\Serverless\OGM\Mapping\Document;
 use Likeuntomurphy\Serverless\OGM\Metadata\MetadataFactory;
+use Likeuntomurphy\Serverless\OGMBundle\Command\TableCreateCommand;
+use Likeuntomurphy\Serverless\OGMBundle\Profiler\DynamoDbDataCollector;
+use Likeuntomurphy\Serverless\OGMBundle\Profiler\DynamoDbLogger;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
@@ -86,6 +90,17 @@ class ServerlessOgmBundle extends AbstractBundle implements CompilerPassInterfac
             ])
             ->autoconfigure()
         ;
+
+        // Logger is always registered — lightweight, no-ops without the profiler
+        $services->set(DynamoDbLogger::class)
+            ->call('register', [service(DynamoDbClient::class)])
+            ->tag('kernel.reset', ['method' => 'reset'])
+        ;
+
+        // Wire profiling logger into DocumentManager
+        $builder->getDefinition(DocumentManager::class)
+            ->addMethodCall('setProfilingLogger', [new Reference(DynamoDbLogger::class)])
+        ;
     }
 
     public function build(ContainerBuilder $container): void
@@ -104,14 +119,23 @@ class ServerlessOgmBundle extends AbstractBundle implements CompilerPassInterfac
 
     public function process(ContainerBuilder $container): void
     {
-        if (!$container->hasDefinition(MetadataFactory::class)) {
-            return;
+        if ($container->hasDefinition(MetadataFactory::class)) {
+            $factory = $container->getDefinition(MetadataFactory::class);
+
+            foreach ($container->findTaggedResourceIds('serverless_ogm.document') as $class => $tags) {
+                $factory->addMethodCall('registerClass', [$class]);
+            }
         }
 
-        $factory = $container->getDefinition(MetadataFactory::class);
-
-        foreach ($container->findTaggedResourceIds('serverless_ogm.document') as $class => $tags) {
-            $factory->addMethodCall('registerClass', [$class]);
+        // Register the data collector only when the profiler is available
+        if ($container->has('profiler') && $container->hasDefinition(DynamoDbLogger::class)) {
+            $collector = new Definition(DynamoDbDataCollector::class);
+            $collector->setArguments([new Reference(DynamoDbLogger::class)]);
+            $collector->addTag('data_collector', [
+                'template' => '@ServerlessOgm/data_collector/dynamodb.html.twig',
+                'id' => 'dynamodb',
+            ]);
+            $container->setDefinition(DynamoDbDataCollector::class, $collector);
         }
     }
 }

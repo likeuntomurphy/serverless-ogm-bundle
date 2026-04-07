@@ -1,0 +1,109 @@
+{% extends '@WebProfiler/Profiler/layout.html.twig' %}
+
+{% block toolbar %}
+    {% set icon %}
+        {{ include('@ServerlessOgm/data_collector/icon.svg') }}
+        <span class="sf-toolbar-value">{{ collector.operationCount }}</span>
+        <span class="sf-toolbar-info-piece-additional-detail">
+            <span class="sf-toolbar-label">in</span>
+            <span class="sf-toolbar-value">{{ '%0.2f'|format(collector.totalTime * 1000) }}</span>
+            <span class="sf-toolbar-label">ms</span>
+        </span>
+    {% endset %}
+
+    {% set text %}
+        <div class="sf-toolbar-info-piece">
+            <b>DynamoDB Operations</b>
+            <span class="sf-toolbar-status">{{ collector.operationCount }}</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Time</b>
+            <span>{{ '%0.2f'|format(collector.totalTime * 1000) }} ms</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Identity Map</b>
+            <span>{{ collector.identityMapHits }} hits / {{ collector.identityMapMisses }} misses</span>
+        </div>
+        <div class="sf-toolbar-info-piece">
+            <b>Hydrations</b>
+            <span>{{ collector.hydrationCount }}</span>
+        </div>
+    {% endset %}
+
+    {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', { link: profiler_url }) }}
+{% endblock %}
+
+{% block menu %}
+    <span class="label">
+        <span class="icon">{{ include('@ServerlessOgm/data_collector/icon.svg') }}</span>
+        <strong>DynamoDB</strong>
+        <span class="count">
+            <span>{{ collector.operationCount }}</span>
+        </span>
+    </span>
+{% endblock %}
+
+{% block panel %}
+    <h2>DynamoDB Operations</h2>
+
+    <div class="metrics">
+        <div class="metric-group">
+            <div class="metric">
+                <span class="value">{{ collector.operationCount }}</span>
+                <span class="label">Operations</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ '%0.2f'|format(collector.totalTime * 1000) }} ms</span>
+                <span class="label">Total Time</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.identityMapHits }}</span>
+                <span class="label">Identity Map Hits</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.identityMapMisses }}</span>
+                <span class="label">Identity Map Misses</span>
+            </div>
+            <div class="metric">
+                <span class="value">{{ collector.hydrationCount }}</span>
+                <span class="label">Hydrations</span>
+            </div>
+        </div>
+    </div>
+
+    {% if collector.operations|length > 0 %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Operation</th>
+                    <th>Table</th>
+                    <th>Time</th>
+                    <th>Capacity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, op in collector.operations %}
+                    <tr>
+                        <td>{{ i + 1 }}</td>
+                        <td><code>{{ op.operation }}</code></td>
+                        <td>{{ op.table ?? '—' }}</td>
+                        <td>{{ '%0.2f'|format(op.time * 1000) }} ms</td>
+                        <td>
+                            {% if op.consumedCapacity %}
+                                RCU: {{ op.consumedCapacity.ReadCapacityUnits ?? '—' }}
+                                WCU: {{ op.consumedCapacity.WriteCapacityUnits ?? '—' }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty">
+            <p>No DynamoDB operations were performed.</p>
+        </div>
+    {% endif %}
+{% endblock %}
