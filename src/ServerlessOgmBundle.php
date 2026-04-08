@@ -41,11 +41,28 @@ class ServerlessOgmBundle extends AbstractBundle implements CompilerPassInterfac
             ->end()
             ->end()
             ->scalarNode('table_suffix')->defaultValue('')->end()
+            ->enumNode('default_billing_mode')
+            ->values(['PAY_PER_REQUEST', 'PROVISIONED'])
+            ->defaultValue('PAY_PER_REQUEST')
+            ->end()
+            ->arrayNode('tables')
+            ->useAttributeAsKey('name')
+            ->arrayPrototype()
+            ->children()
+            ->enumNode('billing_mode')
+            ->values(['PAY_PER_REQUEST', 'PROVISIONED'])
+            ->isRequired()
+            ->end()
+            ->integerNode('rcu')->defaultValue(5)->end()
+            ->integerNode('wcu')->defaultValue(5)->end()
+            ->end()
+            ->end()
+            ->end()
             ->end()
         ;
     }
 
-    /** @param array{dynamodb: array{region: string, endpoint: ?string, credentials: array{key: ?string, secret: ?string}}, table_suffix: string} $config */
+    /** @param array{dynamodb: array{region: string, endpoint: ?string, credentials: array{key: ?string, secret: ?string}}, table_suffix: string, default_billing_mode: string, tables: array<string, array{billing_mode?: string, rcu: int, wcu: int}>} $config */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $services = $container->services();
@@ -87,6 +104,8 @@ class ServerlessOgmBundle extends AbstractBundle implements CompilerPassInterfac
         $services->set(TableCreateCommand::class)
             ->args([
                 service(DocumentManager::class),
+                $config['default_billing_mode'],
+                $config['tables'],
             ])
             ->autoconfigure()
         ;

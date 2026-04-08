@@ -11,8 +11,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'table:create', description: 'Create DynamoDB tables for all mapped documents')]
 final readonly class TableCreateCommand
 {
+    /**
+     * @param array<string, array{billing_mode: string, rcu: int, wcu: int}> $tableConfig
+     */
     public function __construct(
         private DocumentManager $dm,
+        private string $defaultBillingMode = 'PAY_PER_REQUEST',
+        private array $tableConfig = [],
     ) {
     }
 
@@ -53,14 +58,26 @@ final readonly class TableCreateCommand
                 $attrs[] = ['AttributeName' => $metadata->sortKey->attributeName, 'AttributeType' => self::dynamoType($metadata, $metadata->sortKey->propertyName)];
             }
 
-            $client->createTable([
+            $config = $this->tableConfig[$metadata->table] ?? null;
+            $billingMode = $config['billing_mode'] ?? $this->defaultBillingMode;
+
+            $tableParams = [
                 'TableName' => $tableName,
                 'KeySchema' => $schema,
                 'AttributeDefinitions' => $attrs,
-                'BillingMode' => 'PAY_PER_REQUEST',
-            ]);
+                'BillingMode' => $billingMode,
+            ];
 
-            $io->text(sprintf('Created table "%s".', $tableName));
+            if ('PROVISIONED' === $billingMode) {
+                $tableParams['ProvisionedThroughput'] = [
+                    'ReadCapacityUnits' => $config['rcu'] ?? 5,
+                    'WriteCapacityUnits' => $config['wcu'] ?? 5,
+                ];
+            }
+
+            $client->createTable($tableParams);
+
+            $io->text(sprintf('Created table "%s" (%s).', $tableName, $billingMode));
             ++$created;
         }
 

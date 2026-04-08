@@ -4,8 +4,9 @@ namespace Likeuntomurphy\Serverless\OGMBundle\Tests;
 
 use Aws\DynamoDb\DynamoDbClient;
 use Matthias\SymfonyDependencyInjectionTest\PhpUnit\AbstractExtensionTestCase;
-use Likeuntomurphy\Serverless\OGMBundle\ServerlessOgmBundle;
 use Likeuntomurphy\Serverless\OGM\DocumentManager;
+use Likeuntomurphy\Serverless\OGMBundle\Command\TableCreateCommand;
+use Likeuntomurphy\Serverless\OGMBundle\ServerlessOgmBundle;
 use Likeuntomurphy\Serverless\OGM\Metadata\MetadataFactory;
 use Symfony\Component\DependencyInjection\Reference;
 
@@ -77,6 +78,48 @@ class ServerlessOgmExtensionTest extends AbstractExtensionTestCase
         $config = $definition->getArgument(0);
 
         $this->assertSame('us-east-1', $config['region']);
+    }
+
+    public function testDefaultBillingModePassedToCommand(): void
+    {
+        $this->load(['default_billing_mode' => 'PROVISIONED']);
+
+        $definition = $this->container->getDefinition(TableCreateCommand::class);
+
+        $this->assertSame('PROVISIONED', $definition->getArgument(1));
+    }
+
+    public function testTableConfigPassedToCommand(): void
+    {
+        $this->load([
+            'tables' => [
+                'users' => [
+                    'billing_mode' => 'PROVISIONED',
+                    'rcu' => 10,
+                    'wcu' => 20,
+                ],
+            ],
+        ]);
+
+        $definition = $this->container->getDefinition(TableCreateCommand::class);
+        $tables = $definition->getArgument(2);
+
+        $this->assertSame('PROVISIONED', $tables['users']['billing_mode']);
+        $this->assertSame(10, $tables['users']['rcu']);
+        $this->assertSame(20, $tables['users']['wcu']);
+    }
+
+    public function testTableConfigRequiresBillingMode(): void
+    {
+        $this->expectException(\Symfony\Component\Config\Definition\Exception\InvalidConfigurationException::class);
+
+        $this->load([
+            'tables' => [
+                'users' => [
+                    'rcu' => 10,
+                ],
+            ],
+        ]);
     }
 
     public function testDocumentManagerHasResetTag(): void

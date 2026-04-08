@@ -39,6 +39,12 @@ serverless_ogm:
             key: ~               # Explicit access key (default: null, uses credential chain)
             secret: ~            # Explicit secret key
     table_suffix: ''             # Appended to all table names (e.g. '_test')
+    default_billing_mode: 'PAY_PER_REQUEST'  # PAY_PER_REQUEST or PROVISIONED
+    tables:                      # Per-table overrides (keyed by table name from #[Document])
+        sessions:
+            billing_mode: 'PROVISIONED'
+            rcu: 10              # ReadCapacityUnits (default: 5)
+            wcu: 5               # WriteCapacityUnits (default: 5)
 ```
 
 ## Document discovery
@@ -81,7 +87,7 @@ Create DynamoDB tables for all mapped documents:
 php bin/console table:create
 ```
 
-The command reads partition and sort key types from PHP property types (`string` maps to `S`, `int`/`float` to `N`). Tables are created with on-demand billing (`PAY_PER_REQUEST`).
+The command reads partition and sort key types from PHP property types (`string` maps to `S`, `int`/`float` to `N`). Billing mode defaults to `PAY_PER_REQUEST` (on-demand) and can be overridden globally via `default_billing_mode` or per table via the `tables` config. See [ProvisionedThroughput](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.ReadWriteCapacityMode.html) for details on provisioned capacity.
 
 ## Profiler
 
