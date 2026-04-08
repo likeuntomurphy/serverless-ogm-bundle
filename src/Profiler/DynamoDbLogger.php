@@ -33,6 +33,18 @@ class DynamoDbLogger implements ProfilingLogger
                     /** @var ?string $table */
                     $table = $cmd['TableName'] ?? null;
 
+                    // Batch operations store table names in RequestItems
+                    if (null === $table) {
+                        /** @var array<string, mixed> $requestItems */
+                        $requestItems = $cmd['RequestItems'] ?? [];
+                        $tables = array_keys($requestItems);
+                        $table = match (\count($tables)) {
+                            0 => null,
+                            1 => $tables[0],
+                            default => implode(', ', $tables),
+                        };
+                    }
+
                     /** @var array<string, mixed> $params */
                     $params = $cmd->toArray();
 
